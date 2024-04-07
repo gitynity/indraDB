@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 // Storage represents a simple file-based storage.
@@ -53,6 +55,9 @@ func (s *Storage) CreateOrUpdateDocument(collectionName, documentName string, da
 	existingData := make(map[string]interface{})
 	if err := json.NewDecoder(file).Decode(&existingData); err != nil && err != io.EOF {
 		return fmt.Errorf("failed to decode existing document data: %v", err)
+	}
+	if len(existingData) == 0 {
+		existingData["uuid"], _ = uuid.NewUUID()
 	}
 
 	// Update specific key values in the existing document data with the new values provided
