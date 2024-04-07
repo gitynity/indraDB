@@ -77,3 +77,47 @@ func (s *Storage) CreateOrUpdateDocument(collectionName, documentName string, da
 
 	return nil
 }
+
+// FilterDocuments returns documents from the specified collection that match the filter criteria.
+func (s *Storage) FilterDocuments(collectionName string, filters map[string]interface{}) ([]map[string]interface{}, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	collectionPath := filepath.Join(s.basePath, collectionName)
+	dirEntries, err := os.ReadDir(collectionPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read collection directory: %v", err)
+	}
+
+	var filteredDocuments []map[string]interface{}
+	for _, dirEntry := range dirEntries {
+		if !dirEntry.IsDir() {
+			documentPath := filepath.Join(collectionPath, dirEntry.Name())
+			file, err := os.Open(documentPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to open document file: %v", err)
+			}
+			defer file.Close()
+
+			// Decode document data
+			var documentData map[string]interface{}
+			if err := json.NewDecoder(file).Decode(&documentData); err != nil {
+				return nil, fmt.Errorf("failed to decode document data: %v", err)
+			}
+
+			// Check if the document matches the filter criteria
+			match := true
+			for key, value := range filters {
+				if documentData[key] != value {
+					match = false
+					break
+				}
+			}
+			if match {
+				filteredDocuments = append(filteredDocuments, documentData)
+			}
+		}
+	}
+
+	return filteredDocuments, nil
+}

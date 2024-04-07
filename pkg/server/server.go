@@ -44,6 +44,7 @@ func (s *Server) routes() {
 	s.router.HandleFunc("/document/{collectionName}/{documentName}", s.createOrUpdateDocument).Methods("POST")
 	s.router.HandleFunc("/document/{collectionName}/{documentName}", s.deleteDocument).Methods("DELETE")
 	s.router.HandleFunc("/collections/{collectionName}", s.deleteCollection).Methods("DELETE")
+	s.router.HandleFunc("/filterCollections/{collectionName}", s.filterDocuments).Methods("GET")
 
 }
 
@@ -162,6 +163,34 @@ func (s *Server) deleteCollection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, map[string]string{"message": "Document deleted successfully"})
+}
+
+func (s *Server) filterDocuments(w http.ResponseWriter, r *http.Request) {
+	// Extract collection name from the request URL
+	collectionName := mux.Vars(r)["collectionName"]
+	if collectionName == "" {
+		http.Error(w, "Invalid collection name", http.StatusBadRequest)
+		return
+	}
+
+	// Parse query parameters to extract filter criteria
+	filters := make(map[string]interface{})
+	queryParams := r.URL.Query()
+	for key, values := range queryParams {
+		if len(values) > 0 {
+			filters[key] = values[0] // Use the first value if multiple values are present
+		}
+	}
+
+	// Filter documents in the collection based on the provided criteria
+	filteredDocuments, err := s.storage.FilterDocuments(collectionName, filters)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Encode filtered documents into JSON format and send the response
+	jsonResponse(w, filteredDocuments)
 }
 
 func jsonResponse(w http.ResponseWriter, data interface{}) {
