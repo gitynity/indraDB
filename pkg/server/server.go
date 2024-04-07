@@ -43,6 +43,8 @@ func (s *Server) routes() {
 	s.router.HandleFunc("/document/{collectionName}/{documentName}", s.getDocument).Methods("GET")
 	s.router.HandleFunc("/document/{collectionName}/{documentName}", s.createOrUpdateDocument).Methods("POST")
 	s.router.HandleFunc("/document/{collectionName}/{documentName}", s.deleteDocument).Methods("DELETE")
+	s.router.HandleFunc("/collections/{collectionName}", s.deleteCollection).Methods("DELETE")
+
 }
 
 func (s *Server) listCollections(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +121,7 @@ func (s *Server) createOrUpdateDocument(w http.ResponseWriter, r *http.Request) 
 	collectionName := vars["collectionName"]
 	documentName := vars["documentName"]
 
-	var documentData interface{}
+	var documentData map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&documentData); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -142,6 +144,20 @@ func (s *Server) deleteDocument(w http.ResponseWriter, r *http.Request) {
 	documentPath := filepath.Join(s.storage.basePath, collectionName, documentName)
 	if err := os.Remove(documentPath); err != nil {
 		http.Error(w, "Document not found", http.StatusNotFound)
+		return
+	}
+
+	jsonResponse(w, map[string]string{"message": "Document deleted successfully"})
+}
+
+func (s *Server) deleteCollection(w http.ResponseWriter, r *http.Request) {
+	// Delete a collection
+	vars := mux.Vars(r)
+	collectionName := vars["collectionName"]
+
+	collectionPath := filepath.Join(s.storage.basePath, collectionName)
+	if err := os.RemoveAll(collectionPath); err != nil {
+		http.Error(w, "Collection not found", http.StatusNotFound)
 		return
 	}
 
